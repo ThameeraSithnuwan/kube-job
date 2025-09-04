@@ -1,0 +1,21 @@
+{
+  "name": "deploy-api",
+  "version": "1.0.0",
+  "description": "Node.js server that triggers Kubernetes Jobs for Liquibase deploys",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "Thameera",
+  "license": "MIT"
+}

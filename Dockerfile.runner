@@ -1,0 +1,17 @@
+# Use Node.js base image
+FROM node:18-slim
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y git curl jq bash && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy deploy script into container
+COPY deploy.sh /usr/local/bin/deploy.sh
+RUN chmod +x /usr/local/bin/deploy.sh
+
+# Default command (can be overridden by Kubernetes Job)
+CMD ["/bin/bash"]
