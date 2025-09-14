@@ -14,7 +14,36 @@ import cors from "cors";
 app.use(cors());
 app.options("*", cors());
 
-app.post("/deploy", async (req, res) => {
+// Authentication middleware for static token validation
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ 
+      message: 'Access token is required. Use Authorization: Bearer <token>' 
+    });
+  }
+
+  const validTokens = process.env.API_TOKENS ? 
+    process.env.API_TOKENS.split(',').map(t => t.trim()) : [];
+
+  if (validTokens.length === 0) {
+    return res.status(500).json({ 
+      message: 'API_TOKENS not configured in environment' 
+    });
+  }
+
+  if (!validTokens.includes(token)) {
+    return res.status(403).json({ 
+      message: 'Invalid or expired token' 
+    });
+  }
+
+  next();
+};
+
+app.post("/deploy", authenticateToken, async (req, res) => {
   try {
     const {
       repo_url,
@@ -92,7 +121,7 @@ spec:
   }
 });
 
-app.get("/job/:name/latest-pod", async (req, res) => {
+app.get("/job/:name/latest-pod", authenticateToken, async (req, res) => {
   try {
     const jobName = req.params.name;
     if (!jobName) {
