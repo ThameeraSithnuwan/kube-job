@@ -27,6 +27,11 @@ spec:
                 secretKeyRef:
                   name: github-pat-secret
                   key: token
+            - name: API_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: api-tokens-secret
+                  key: tokens
 
 ---
 # Service (updated to ClusterIP)
