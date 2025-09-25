@@ -86,5 +86,10 @@ jobs:
 
                 echo "testing"
                 echo "${{ github.event.client_payload.tickets }}"
+                echo "Listing current directory files:"
+                ls -la
+                echo "Listing current directory files:"
+
+                
                   
   
