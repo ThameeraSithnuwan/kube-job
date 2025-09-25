@@ -57,6 +57,7 @@ app.post("/deploy", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Missing required input(s)" });
     }
 
+    
     // --- Build clone URL with PAT ---
     const patToken = process.env.PAT_TOKEN;
     if (!patToken) {
@@ -64,12 +65,20 @@ app.post("/deploy", authenticateToken, async (req, res) => {
         .status(500)
         .json({ message: "PAT_TOKEN not set in environment" });
     }
+
+    const namespace = process.env.NAMESPACE;
+    if(!namespace){
+      return res
+        .status(500)
+        .json({ message: "NAMESPACE not set in environment" });
+    }
+
     let authRepoUrl = repo_url;
     if (repo_url.startsWith("https://")) {
       const parts = repo_url.split("https://");
       authRepoUrl = `https://${patToken}@${parts[1]}`;
     }
-
+    
     // --- Build Kubernetes Job YAML dynamically ---
     const jobName = `deploy-job-${Date.now()}`;
     const workdir = "/tmp/workdir";
@@ -78,11 +87,13 @@ app.post("/deploy", authenticateToken, async (req, res) => {
       JSON.stringify(liquibase_envs || {})
     ).toString("base64");
 
+
     const jobYaml = `
-apiVersion: batch/v1
-kind: Job
-metadata:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
   name: ${jobName}
+  namespace: ${namespace}
 spec:
   backoffLimit: 0
   template:
@@ -121,49 +132,56 @@ spec:
   }
 });
 
-app.get("/job/:name/latest-pod", authenticateToken, async (req, res) => {
+app.get("/job/:name/status", authenticateToken, async (req, res) => {
   try {
     const jobName = req.params.name;
     if (!jobName) {
       return res.status(400).json({ message: "Job name is required" });
     }
 
-    // Get pods for this job in JSON
+    // Get the Job resource in JSON
     const { stdout, stderr } = await execAsync(
-      `kubectl get pods --selector=job-name=${jobName} -o json`
+      `kubectl get job ${jobName} -o json`
     );
 
     if (stderr) {
       return res.status(500).json({ error: stderr });
     }
 
-    const pods = JSON.parse(stdout).items;
-    if (pods.length === 0) {
-      return res.status(404).json({ message: "No pods found for this Job" });
+    const job = JSON.parse(stdout);
+    const status = job.status || {};
+
+    // Default state
+    let jobStatus = "Unknown";
+
+    // Normalize status
+    if (status.active > 0) {
+      jobStatus = "Running";
+    } else if (
+      status.conditions?.some((c) => c.type === "Complete" && c.status === "True")
+    ) {
+      jobStatus = "Succeeded";
+    } else if (
+      status.conditions?.some((c) => c.type === "Failed" && c.status === "True")
+    ) {
+      jobStatus = "Failed";
     }
 
-    // Sort pods by creationTimestamp descending (latest first)
-    pods.sort(
-      (a, b) =>
-        new Date(b.metadata.creationTimestamp) -
-        new Date(a.metadata.creationTimestamp)
-    );
-
-    const latestPod = pods[0];
-    const podDetails = {
-      name: latestPod.metadata.name,
-      phase: latestPod.status.phase,
-      startTime: latestPod.status.startTime,
-      completionTime:
-        latestPod.status.containerStatuses?.[0]?.state?.terminated?.finishedAt,
-      containerStatus: latestPod.status.containerStatuses?.[0]?.state,
+    const jobDetails = {
+      name: job.metadata?.name,
+      startTime: status.startTime,
+      completionTime: status.completionTime || null,
+      succeeded: status.succeeded || 0,
+      failed: status.failed || 0,
+      status: jobStatus,
     };
 
-    return res.status(200).json({ jobName, latestPod: podDetails });
+    return res.status(200).json({ job: jobDetails });
   } catch (err) {
     return res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
+
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");
