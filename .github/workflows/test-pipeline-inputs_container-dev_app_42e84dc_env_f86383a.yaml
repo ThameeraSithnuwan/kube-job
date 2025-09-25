@@ -66,6 +66,11 @@ jobs:
                   echo "Merging remote branch"
                   git fetch $remote $remote_branch || exit -3
                   git merge $remote/$remote_branch || exit -4
+
+                  # Update COMMIT_ID after merge
+                  ACTUAL_COMMIT_ID=$(git rev-parse HEAD)
+                  echo "Updated CommitId after merge: $ACTUAL_COMMIT_ID"
+                  echo "COMMIT_ID=$ACTUAL_COMMIT_ID" >> $GITHUB_ENV
                 done
                 echo "branches=${branches}" >> "$GITHUB_ENV"
               elif [ -n "$COMMIT_ID" ]; then
