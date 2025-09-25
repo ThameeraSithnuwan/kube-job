@@ -42,28 +42,32 @@ jobs:
               echo "Starting the checkout process..."
               git fetch --all
               if [ -n "$TICKETS" ]; then
-                echo "Tickets provided: $TICKETS"
-                git checkout master
-                readarray -d , -t tickets <<< "$TICKETS"
-    
+                # git really wants these for merges, but we are not going to push, so they don't really matter
+                git config --global user.email "do.not.use@example.com"
+                git config --global user.name "${{ github.actor }}"
+      
+                readarray -d , -t tickets <<< "${{ github.event.inputs.tickets }}"
                 for t in ${tickets[@]}
                 do
                   echo "Trying to merge branch for $t"
-                  branch=$(git branch -r | grep -o "origin/$t.*") || (echo "No branch found for $t, exiting"; exit 1)
+                  branch=$(git branch -r | grep -o "origin/$t.*") || (echo "No branch found, exiting"; exit -1)
                   echo "Found $branch"
-    
-                  if [ $(wc -l <<< $branch) -ne "1" ]; then
-                    echo "Expecting only one branch for $t, aborting"
-                    exit 2
-                  fi
-    
+                  branches="$branches\n* $branch"
+                  if [ $(wc -l <<< $branch) -ne "1" ]; then echo "Expecting to find only one branch, aborting"; exit -2; fi
                   remote="${branch%%/*}"
                   remote_branch="${branch#*/}"
-    
-                  git fetch $remote $remote_branch || exit 3
-                  git merge $remote/$remote_branch || exit 4
+      
+                  echo "Merging lint counts"
+                  # Update the lint counts to match the target so we dont get conflicts
+                  git checkout -f $remote/$remote_branch -- packages/backend/lint-state.txt
+                  git checkout -f $remote/$remote_branch -- packages/web/lint-state.txt
+                  git commit -m "Merge Lint Counts" || echo "No lint changes to commit"
+      
+                  echo "Merging remote branch"
+                  git fetch $remote $remote_branch || exit -3
+                  git merge $remote/$remote_branch || exit -4
                 done
-                echo "Finished merging tickets"
+                echo "branches=${branches}" >> "$GITHUB_ENV"
               elif [ -n "$COMMIT_ID" ]; then
                 echo "Commit ID provided: $COMMIT_ID"
                 git checkout $COMMIT_ID || true
