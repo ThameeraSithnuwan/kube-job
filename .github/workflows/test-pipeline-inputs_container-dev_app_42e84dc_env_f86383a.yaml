@@ -46,7 +46,7 @@ jobs:
                 git config --global user.email "do.not.use@example.com"
                 git config --global user.name "${{ github.actor }}"
       
-                readarray -d , -t tickets <<< "${{ github.event.inputs.tickets }}"
+                readarray -d , -t tickets <<< "${{ github.event.client_payload.tickets }}"
                 for t in ${tickets[@]}
                 do
                   echo "Trying to merge branch for $t"
