@@ -16,27 +16,28 @@ app.options("*", cors());
 
 // Authentication middleware for static token validation
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ 
-      message: 'Access token is required. Use Authorization: Bearer <token>' 
+    return res.status(401).json({
+      message: "Access token is required. Use Authorization: Bearer <token>",
     });
   }
 
-  const validTokens = process.env.API_TOKENS ? 
-    process.env.API_TOKENS.split(',').map(t => t.trim()) : [];
+  const validTokens = process.env.API_TOKENS
+    ? process.env.API_TOKENS.split(",").map((t) => t.trim())
+    : [];
 
   if (validTokens.length === 0) {
-    return res.status(500).json({ 
-      message: 'API_TOKENS not configured in environment' 
+    return res.status(500).json({
+      message: "API_TOKENS not configured in environment",
     });
   }
 
   if (!validTokens.includes(token)) {
-    return res.status(403).json({ 
-      message: 'Invalid or expired token' 
+    return res.status(403).json({
+      message: "Invalid or expired token",
     });
   }
 
@@ -57,7 +58,6 @@ app.post("/deploy", authenticateToken, async (req, res) => {
       return res.status(400).json({ message: "Missing required input(s)" });
     }
 
-    
     // --- Build clone URL with PAT ---
     const patToken = process.env.PAT_TOKEN;
     if (!patToken) {
@@ -67,7 +67,7 @@ app.post("/deploy", authenticateToken, async (req, res) => {
     }
 
     const namespace = process.env.NAMESPACE;
-    if(!namespace){
+    if (!namespace) {
       return res
         .status(500)
         .json({ message: "NAMESPACE not set in environment" });
@@ -78,7 +78,7 @@ app.post("/deploy", authenticateToken, async (req, res) => {
       const parts = repo_url.split("https://");
       authRepoUrl = `https://${patToken}@${parts[1]}`;
     }
-    
+
     // --- Build Kubernetes Job YAML dynamically ---
     const jobName = `deploy-job-${Date.now()}`;
     const workdir = "/tmp/workdir";
@@ -87,11 +87,9 @@ app.post("/deploy", authenticateToken, async (req, res) => {
       JSON.stringify(liquibase_envs || {})
     ).toString("base64");
 
-
-    const jobYaml = `
-    apiVersion: batch/v1
-    kind: Job
-    metadata:
+    const jobYaml = `apiVersion: batch/v1
+kind: Job
+metadata:
   name: ${jobName}
   namespace: ${namespace}
 spec:
@@ -158,7 +156,9 @@ app.get("/job/:name/status", authenticateToken, async (req, res) => {
     if (status.active > 0) {
       jobStatus = "Running";
     } else if (
-      status.conditions?.some((c) => c.type === "Complete" && c.status === "True")
+      status.conditions?.some(
+        (c) => c.type === "Complete" && c.status === "True"
+      )
     ) {
       jobStatus = "Succeeded";
     } else if (
@@ -181,7 +181,6 @@ app.get("/job/:name/status", authenticateToken, async (req, res) => {
     return res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
-
 
 app.listen(3000, () => {
   console.log("Server running on port 3000");
