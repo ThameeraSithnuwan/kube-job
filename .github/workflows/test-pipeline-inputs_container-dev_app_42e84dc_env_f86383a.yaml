@@ -85,6 +85,6 @@ jobs:
         run: |2-
 
                 echo "testing"
-                
+                echo "${{ github.event.inputs.tickets }}"
                   
   
