@@ -134,7 +134,7 @@ app.get("/job/:name/status", authenticateToken, async (req, res) => {
   try {
     const jobName = req.params.name;
     if (!jobName) {
-      return res.status(400).json({ message: "Job name is required" });
+      return res.status(400).json({ message: "Job name is required." });
     }
 
     // Get the Job resource in JSON
