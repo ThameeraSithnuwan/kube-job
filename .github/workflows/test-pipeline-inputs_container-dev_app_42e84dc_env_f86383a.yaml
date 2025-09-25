@@ -32,10 +32,10 @@ jobs:
         env:
           COMMIT_ID: ${{ github.event.client_payload.commitId }}
           BRANCH_NAME: ${{ github.event.client_payload.branchName }}
-          TICKETS: ${{ github.event.inputs.tickets }}
+          TICKETS: ${{ github.event.client_payload.tickets }}
         if: >-
           ${{ github.event.client_payload.commitId != null ||
-              github.event.inputs.tickets != null ||
+              github.event.client_payload.tickets != null ||
               github.event.client_payload.branchName != null }}
         run: |2-
 
