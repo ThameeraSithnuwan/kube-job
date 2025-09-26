@@ -20,7 +20,82 @@ env:
     ${{github.event.client_payload.branchName || github.event.branch ||
     github.ref_name}}
   DEPLOY_STEP_SHOULD_DEPLOY: 'true'
+  API_URL: 'https://rtcaws-qa.rtcmgmt.com/liquibase-runner-service'
+  API_TOKEN: test
 jobs:
+  db-migration:
+      name: Database Migration
+      runs-on: ubuntu-latest
+      outputs:
+        migration_status: ${{ steps.monitor.outcome == 'success' && 'success' || 'failed' }}
+      steps:
+        - name: Trigger Deployment
+          id: trigger
+          run: |
+            response=$(curl -s -X POST "$API_URL/deploy" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $API_TOKEN" \
+              -d '{
+                "repo_url": "https://github.com/realtimeconveyancer/realtime-matters-service.git",
+                "liquibase_envs": {
+                  "DB_HOST": "rtc-app-realtime-matter-service.ch6wiqqislb8.ap-southeast-2.rds.amazonaws.com",
+                  "DB_PORT": 5432,
+                  "DB_NAME": "realtimematterdb",
+                  "DB_USER": "realtimeuser",
+                  "DB_PASS": "${{ secrets.DB_PASSWORD }}",
+                  "CHANGELOG_FILE": "liquibase/changelogs/changelog.master.xml"
+                },
+                "env_filename": ".env.production",
+                "liquibase_exec_cmd": "npm i && cd liquibase && npm i && cd .. && npm run liquibase:deploy",
+                "commit_id": "${{ github.event.inputs.commit_id }}"
+              }')
+            
+            job_name=$(echo "$response" | jq -r '.job')
+            if [ -z "$job_name" ] || [ "$job_name" = "null" ]; then
+              echo "Error: Failed to get job name"
+              echo "Response: $response"
+              exit 1
+            fi
+            
+            echo "job_name=$job_name" >> $GITHUB_OUTPUT
+            echo "Deployment triggered. Job name: $job_name"
+  
+        - name: Monitor Job Status
+          id: monitor
+          run: |
+            job_name=${{ steps.trigger.outputs.job_name }}
+            max_attempts=30  # 30 attempts * 10 seconds = 5 minutes max
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "Checking job status (Attempt $attempt/$max_attempts)..."
+              
+              response=$(curl -s -X GET "$API_URL/job/$job_name/latest-pod" \
+                -H "Authorization: Bearer $API_TOKEN")
+              
+              pod_status=$(echo "$response" | jq -r '.latestPod.containerStatus | to_entries[0].value.reason // "UNKNOWN"')
+              phase=$(echo "$response" | jq -r '.latestPod.phase')
+              
+              echo "Current status - Phase: $phase, Container Status: $pod_status"
+              
+              if [ "$phase" = "Succeeded" ]; then
+                echo "✅ Database migration completed successfully!"
+                exit 0
+              fi
+              
+              if [ "$phase" = "Failed" ] || [ "$pod_status" = "Error" ] || [ "$pod_status" = "CrashLoopBackOff" ]; then
+                echo "❌ Database migration failed with status: $pod_status"
+                echo "Debug info:"
+                echo "$response" | jq .
+                exit 1
+              fi
+              
+              sleep 10
+              attempt=$((attempt + 1))
+            done
+            
+            echo "❌ Database migration timed out after $((max_attempts * 10)) seconds"
+            exit 1
   code-scan:
     name: Code Scan
     runs-on: ubuntu-latest
