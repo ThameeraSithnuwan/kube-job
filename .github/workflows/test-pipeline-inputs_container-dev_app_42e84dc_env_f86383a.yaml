@@ -66,30 +66,36 @@ jobs:
             job_name=${{ steps.trigger.outputs.job_name }}
             max_attempts=30  # 30 attempts * 10 seconds = 5 minutes max
             attempt=1
-            
+                        
             while [ $attempt -le $max_attempts ]; do
               echo "Checking job status (Attempt $attempt/$max_attempts)..."
-              
-              response=$(curl -s -X GET "$API_URL/job/$job_name/latest-pod" \
+            
+              response=$(curl -s -X GET "$API_URL/job/$job_name/status" \
                 -H "Authorization: Bearer $API_TOKEN")
-              
-              pod_status=$(echo "$response" | jq -r '.latestPod.containerStatus | to_entries[0].value.reason // "UNKNOWN"')
-              phase=$(echo "$response" | jq -r '.latestPod.phase')
-              
-              echo "Current status - Phase: $phase, Container Status: $pod_status"
-              
-              if [ "$phase" = "Succeeded" ]; then
+            
+              # Validate JSON
+              if ! echo "$response" | jq empty >/dev/null 2>&1; then
+                echo "❌ Invalid JSON response:"
+                echo "$response"
+                exit 1
+              fi
+            
+              job_status=$(echo "$response" | jq -r '.job.status // "UNKNOWN"')
+            
+              echo "Current job status: $job_status"
+            
+              if [ "$job_status" = "Succeeded" ]; then
                 echo "✅ Database migration completed successfully!"
                 exit 0
               fi
-              
-              if [ "$phase" = "Failed" ] || [ "$pod_status" = "Error" ] || [ "$pod_status" = "CrashLoopBackOff" ]; then
-                echo "❌ Database migration failed with status: $pod_status"
+            
+              if [ "$job_status" = "Failed" ]; then
+                echo "❌ Database migration failed!"
                 echo "Debug info:"
                 echo "$response" | jq .
                 exit 1
               fi
-              
+            
               sleep 10
               attempt=$((attempt + 1))
             done
@@ -100,6 +106,8 @@ jobs:
     name: Code Scan
     runs-on: ubuntu-latest
     permissions: write-all
+    needs: 
+      - db-migration
     steps:
       - name: 'Run :: Checkout repository for Code Scan'
         uses: actions/checkout@v4
