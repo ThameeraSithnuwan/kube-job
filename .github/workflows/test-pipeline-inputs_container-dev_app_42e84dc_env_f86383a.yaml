@@ -23,13 +23,11 @@ env:
   API_URL: 'https://rtcaws-qa.rtcmgmt.com/liquibase-runner-service'
   API_TOKEN: test
 jobs:
-  db-migration:
-      name: Database Migration
+  database-deployment:
+      name: Database Deployment
       runs-on: ubuntu-latest
-      outputs:
-        migration_status: ${{ steps.monitor.outcome == 'success' && 'success' || 'failed' }}
       steps:
-        - name: Trigger Deployment
+        - name: Trigger Database Deployment
           id: trigger
           run: |
             response=$(curl -s -X POST "$API_URL/deploy" \
@@ -58,13 +56,12 @@ jobs:
             fi
             
             echo "job_name=$job_name" >> $GITHUB_OUTPUT
-            echo "Deployment triggered. Job name: $job_name"
+            echo "Database Deployment triggered. Job name: $job_name"
   
-        - name: Monitor Job Status
-          id: monitor
+        - name: Check Database Deployment Job Status
           run: |
             job_name=${{ steps.trigger.outputs.job_name }}
-            max_attempts=30  # 30 attempts * 10 seconds = 5 minutes max
+            max_attempts=60
             attempt=1
                         
             while [ $attempt -le $max_attempts ]; do
@@ -75,7 +72,7 @@ jobs:
             
               # Validate JSON
               if ! echo "$response" | jq empty >/dev/null 2>&1; then
-                echo "❌ Invalid JSON response:"
+                echo "Invalid JSON response:"
                 echo "$response"
                 exit 1
               fi
@@ -85,12 +82,12 @@ jobs:
               echo "Current job status: $job_status"
             
               if [ "$job_status" = "Succeeded" ]; then
-                echo "✅ Database migration completed successfully!"
+                echo "Database deployment completed successfully!"
                 exit 0
               fi
             
               if [ "$job_status" = "Failed" ]; then
-                echo "❌ Database migration failed!"
+                echo "Database deployment failed!"
                 echo "Debug info:"
                 echo "$response" | jq .
                 exit 1
@@ -100,14 +97,14 @@ jobs:
               attempt=$((attempt + 1))
             done
             
-            echo "❌ Database migration timed out after $((max_attempts * 10)) seconds"
+            echo "Database deployment timed out after $((max_attempts * 10)) seconds"
             exit 1
   code-scan:
     name: Code Scan
     runs-on: ubuntu-latest
     permissions: write-all
     needs: 
-      - db-migration
+      - database-deployment
     steps:
       - name: 'Run :: Checkout repository for Code Scan'
         uses: actions/checkout@v4
