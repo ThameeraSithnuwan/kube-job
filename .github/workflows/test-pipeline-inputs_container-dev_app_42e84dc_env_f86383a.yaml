@@ -20,8 +20,8 @@ env:
     ${{github.event.client_payload.branchName || github.event.branch ||
     github.ref_name}}
   DEPLOY_STEP_SHOULD_DEPLOY: 'true'
-  API_URL: ${{secrets.QA_LIQUIBASE_RUNNER_API_URL}}
-  API_TOKEN: ${{secrets.QA_API_TOKEN}}
+  API_URL: ${{secrets.PROD_LIQUIBASE_RUNNER_API_URL}}
+  API_TOKEN: ${{secrets.PROD_API_TOKEN}}
 jobs:
   database-deployment:
       name: Database Deployment
@@ -73,11 +73,11 @@ jobs:
               -d '{
                 "repo_url": "https://github.com/realtimeconveyancer/realtime-matters-service.git",
                 "liquibase_envs": {
-                  "DB_HOST": "${{ secrets.QA_DB_HOST }}",
+                  "DB_HOST": "${{ secrets.PROD_DB_HOST }}",
                   "DB_PORT": 5432,
                   "DB_NAME": "${{ secrets.DB_NAME }}",
                   "DB_USER": "${{ secrets.DB_USER }}",
-                  "DB_PASS": "${{ secrets.QA_DB_PASS }}",
+                  "DB_PASS": "${{ secrets.PROD_DB_PASS }}",
                   "CHANGELOG_FILE": "liquibase/changelogs/changelog.master.xml"
                 },
                 "env_filename": "${{ secrets.ENV_FILENAME }}",
