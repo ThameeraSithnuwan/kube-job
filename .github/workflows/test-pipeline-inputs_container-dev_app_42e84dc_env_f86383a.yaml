@@ -82,7 +82,7 @@ jobs:
                 },
                 "env_filename": "${{ secrets.ENV_FILENAME }}",
                 "liquibase_exec_cmd": "${{ secrets.EXEC_CMD }}",
-                "commit_id": "${{ env.COMMIT_ID }}"
+                "commit_id": ""
               }')
             
             job_name=$(echo "$response" | jq -r '.job')
