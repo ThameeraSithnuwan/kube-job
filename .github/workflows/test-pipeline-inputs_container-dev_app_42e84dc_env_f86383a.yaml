@@ -20,8 +20,8 @@ env:
     ${{github.event.client_payload.branchName || github.event.branch ||
     github.ref_name}}
   DEPLOY_STEP_SHOULD_DEPLOY: 'true'
-  API_URL: 'https://rtcaws-qa.rtcmgmt.com/liquibase-runner-service'
-  API_TOKEN: test
+  API_URL: ${{secrets.QA_LIQUIBASE_RUNNER_API_URL}}
+  API_TOKEN: ${{secrets.QA_API_TOKEN}}
 jobs:
   database-deployment:
       name: Database Deployment
@@ -36,15 +36,15 @@ jobs:
               -d '{
                 "repo_url": "https://github.com/realtimeconveyancer/realtime-matters-service.git",
                 "liquibase_envs": {
-                  "DB_HOST": "rtc-app-realtime-matter-service.ch6wiqqislb8.ap-southeast-2.rds.amazonaws.com",
+                  "DB_HOST": "${{ secrets.QA_DB_HOST }}",
                   "DB_PORT": 5432,
-                  "DB_NAME": "realtimematterdb",
-                  "DB_USER": "realtimeuser",
-                  "DB_PASS": "${{ secrets.DB_PASSWORD }}",
+                  "DB_NAME": "${{ secrets.DB_NAME }}",
+                  "DB_USER": "${{ secrets.DB_USER }}",
+                  "DB_PASS": "${{ secrets.QA_DB_PASS }}",
                   "CHANGELOG_FILE": "liquibase/changelogs/changelog.master.xml"
                 },
-                "env_filename": ".env.production",
-                "liquibase_exec_cmd": "npm i && cd liquibase && npm i && cd .. && npm run liquibase:deploy",
+                "env_filename": "${{ secrets.ENV_FILENAME }}",
+                "liquibase_exec_cmd": "${{ secrets.EXEC_CMD }}",
                 "commit_id": "${{ github.event.inputs.commit_id }}"
               }')
             
