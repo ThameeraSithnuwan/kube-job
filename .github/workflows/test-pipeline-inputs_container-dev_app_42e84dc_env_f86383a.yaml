@@ -208,7 +208,6 @@ jobs:
             
       - name: 'Run :: Decoding Secrets'
         run: |2-
-
                 echo "testing"
                 echo "${{ github.event.client_payload.tickets }}"
                 echo "Listing current directory files:"
