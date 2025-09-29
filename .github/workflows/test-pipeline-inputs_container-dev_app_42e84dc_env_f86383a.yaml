@@ -6,7 +6,6 @@ name: >-
     branches:
       - master
     paths-ignore:
-      - .github/workflows/**
       - .trivyignore
       - Readme.md
       - README.md
@@ -82,7 +81,7 @@ jobs:
                 },
                 "env_filename": "${{ secrets.ENV_FILENAME }}",
                 "liquibase_exec_cmd": "${{ secrets.EXEC_CMD }}",
-                "commit_id": ""
+                "commit_id": "a1aefa818946cf8ee098c59ed198c32bf9030b57"
               }')
             
             job_name=$(echo "$response" | jq -r '.job')
