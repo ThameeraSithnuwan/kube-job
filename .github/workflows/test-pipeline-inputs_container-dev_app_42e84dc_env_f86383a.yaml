@@ -7,10 +7,6 @@ name: >-
       - master
     paths:
       - 'packages/backend/**'
-    paths-ignore:
-      - .trivyignore
-      - Readme.md
-      - README.md
   workflow_dispatch: {}
   repository_dispatch:
     types: pipeline_fcdb47f7-ec13-4c8c-a137-99cd0e5f4eb8
