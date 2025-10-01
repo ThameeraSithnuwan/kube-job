@@ -5,6 +5,8 @@ name: >-
   push:
     branches:
       - master
+    paths:
+      - 'packages/backend/**'
     paths-ignore:
       - .trivyignore
       - Readme.md
@@ -63,78 +65,7 @@ jobs:
                 else
                   echo "Skipping checkout..."
                 fi
-        - name: Trigger Database Deployment
-          id: trigger
-          run: |
-            response=$(curl -s -X POST "$API_URL/deploy" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer $API_TOKEN" \
-              -d '{
-                "repo_url": "https://github.com/realtimeconveyancer/realtime-matters-service.git",
-                "liquibase_envs": {
-                  "DB_HOST": "${{ secrets.QA_DB_HOST }}",
-                  "DB_PORT": 5432,
-                  "DB_NAME": "${{ secrets.DB_NAME }}",
-                  "DB_USER": "${{ secrets.DB_USER }}",
-                  "DB_PASS": "${{ secrets.QA_DB_PASS }}",
-                  "CHANGELOG_FILE": "liquibase/changelogs/changelog.master.xml"
-                },
-                "env_filename": "${{ secrets.ENV_FILENAME }}",
-                "liquibase_exec_cmd": "${{ secrets.EXEC_CMD }}",
-                "commit_id": "a1aefa818946cf8ee098c59ed198c32bf9030b57"
-              }')
-            
-            job_name=$(echo "$response" | jq -r '.job')
-            if [ -z "$job_name" ] || [ "$job_name" = "null" ]; then
-              echo "Error: Failed to get job name"
-              echo "Response: $response"
-              exit 1
-            fi
-            
-            echo "job_name=$job_name" >> $GITHUB_OUTPUT
-            echo "Database Deployment triggered. Job name: $job_name"
-  
-        - name: Check Database Deployment Job Status
-          run: |
-            job_name=${{ steps.trigger.outputs.job_name }}
-            max_attempts=60
-            attempt=1
-                        
-            while [ $attempt -le $max_attempts ]; do
-              echo "Checking job status (Attempt $attempt/$max_attempts)..."
-            
-              response=$(curl -s -X GET "$API_URL/job/$job_name/status" \
-                -H "Authorization: Bearer $API_TOKEN")
-            
-              # Validate JSON
-              if ! echo "$response" | jq empty >/dev/null 2>&1; then
-                echo "Invalid JSON response:"
-                echo "$response"
-                exit 1
-              fi
-            
-              job_status=$(echo "$response" | jq -r '.job.status // "UNKNOWN"')
-            
-              echo "Current job status: $job_status"
-            
-              if [ "$job_status" = "Succeeded" ]; then
-                echo "Database deployment completed successfully!"
-                exit 0
-              fi
-            
-              if [ "$job_status" = "Failed" ]; then
-                echo "Database deployment failed!"
-                echo "Debug info:"
-                echo "$response" | jq .
-                exit 1
-              fi
-            
-              sleep 10
-              attempt=$((attempt + 1))
-            done
-            
-            echo "Database deployment timed out after $((max_attempts * 10)) seconds"
-            exit 1
+
   code-scan:
     name: Code Scan
     runs-on: ubuntu-latest
